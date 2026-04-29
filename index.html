@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TODOアプリ</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        max-width: 640px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+      }
+      h1 {
+        margin-bottom: 1rem;
+      }
+      form,
+      .toolbar {
+        display: flex;
+        gap: 0.5rem;
+      }
+      .toolbar {
+        margin-top: 0.75rem;
+      }
+      input[type="text"] {
+        flex: 1;
+        padding: 0.5rem;
+      }
+      button {
+        padding: 0.5rem 0.75rem;
+        cursor: pointer;
+      }
+      ul {
+        list-style: none;
+        padding: 0;
+        margin-top: 1rem;
+      }
+      li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 0.5rem 0.75rem;
+        margin-bottom: 0.5rem;
+      }
+      .todo-left {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .done {
+        text-decoration: line-through;
+        color: #666;
+      }
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .muted {
+        color: #666;
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>TODOアプリ</h1>
+
+    <form id="todo-form">
+      <input id="todo-input" type="text" placeholder="やることを入力" required />
+      <button type="submit">追加</button>
+    </form>
+
+    <div class="toolbar">
+      <button id="download-button" type="button">TODOをダウンロード</button>
+    </div>
+
+    <p class="muted" id="count">0件</p>
+    <ul id="todo-list"></ul>
+
+    <script>
+      const form = document.getElementById('todo-form');
+      const input = document.getElementById('todo-input');
+      const list = document.getElementById('todo-list');
+      const count = document.getElementById('count');
+      const downloadButton = document.getElementById('download-button');
+
+      let todos = JSON.parse(localStorage.getItem('todos') || '[]');
+
+      function saveTodos() {
+        localStorage.setItem('todos', JSON.stringify(todos));
+      }
+
+      function updateCount() {
+        const total = todos.length;
+        const done = todos.filter((todo) => todo.done).length;
+        count.textContent = `${done}/${total}件 完了`;
+      }
+
+      function downloadTodos() {
+        if (todos.length === 0) {
+          window.alert('ダウンロードするTODOがありません。');
+          return;
+        }
+
+        const payload = {
+          exportedAt: new Date().toISOString(),
+          todos,
+        };
+
+        const blob = new Blob([JSON.stringify(payload, null, 2)], {
+          type: 'application/json',
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `todos-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      function renderTodos() {
+        list.innerHTML = '';
+
+        todos.forEach((todo, index) => {
+          const li = document.createElement('li');
+
+          const left = document.createElement('div');
+          left.className = 'todo-left';
+
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.checked = todo.done;
+          checkbox.addEventListener('change', () => {
+            todos[index].done = checkbox.checked;
+            saveTodos();
+            renderTodos();
+          });
+
+          const text = document.createElement('span');
+          text.textContent = todo.text;
+          if (todo.done) text.classList.add('done');
+
+          left.appendChild(checkbox);
+          left.appendChild(text);
+
+          const actions = document.createElement('div');
+          actions.className = 'actions';
+
+          const removeButton = document.createElement('button');
+          removeButton.type = 'button';
+          removeButton.textContent = '削除';
+          removeButton.addEventListener('click', () => {
+            todos.splice(index, 1);
+            saveTodos();
+            renderTodos();
+          });
+
+          actions.appendChild(removeButton);
+
+          li.appendChild(left);
+          li.appendChild(actions);
+
+          list.appendChild(li);
+        });
+
+        updateCount();
+      }
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+
+        const text = input.value.trim();
+        if (!text) return;
+
+        todos.push({ text, done: false });
+        saveTodos();
+        renderTodos();
+        form.reset();
+        input.focus();
+      });
+
+      downloadButton.addEventListener('click', downloadTodos);
+
+      renderTodos();
+    </script>
+  </body>
+</html>
